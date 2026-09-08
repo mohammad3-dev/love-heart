@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>For You ❤️</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: black;
+        }
+
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        canvas {
+            display: block;
+            background: black;
+        }
+    </style>
+</head>
+
+<body>
+
+<canvas id="canvas"></canvas>
+
+<script>
+
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d", { alpha: false });
+
+const BASE_SIZE = 700;
+
+let dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+function resizeCanvas() {
+    const size = Math.min(
+        window.innerWidth,
+        window.innerHeight
+    );
+
+    dpr = Math.min(
+        window.devicePixelRatio || 1,
+        2
+    );
+
+    canvas.style.width = size + "px";
+    canvas.style.height = size + "px";
+
+    canvas.width = Math.floor(size * dpr);
+    canvas.height = Math.floor(size * dpr);
+
+    ctx.setTransform(
+        dpr * size / BASE_SIZE,
+        0,
+        0,
+        dpr * size / BASE_SIZE,
+        0,
+        0
+    );
+
+    ctx.fillStyle = "black";
+
+    ctx.fillRect(
+        0,
+        0,
+        BASE_SIZE,
+        BASE_SIZE
+    );
+}
+
+resizeCanvas();
+
+window.addEventListener(
+    "resize",
+    resizeCanvas
+);
+
+const CENTER_X = BASE_SIZE / 2;
+const CENTER_Y = BASE_SIZE / 2;
+
+function heart(a, scale) {
+    const x =
+        16 *
+        Math.pow(Math.sin(a), 3) *
+        scale;
+
+    const y =
+        (
+            13 * Math.cos(a)
+            - 5 * Math.cos(2 * a)
+            - 2 * Math.cos(3 * a)
+            - Math.cos(4 * a)
+        ) * scale;
+
+    return {
+        x: CENTER_X + x,
+        y: CENTER_Y - y
+    };
+}
+
+function random(min, max) {
+    return Math.random() * (max - min) + min;
+}
+
+const PARTICLES = 10000;
+const mainParticles = [];
+
+for (let i = 0; i < PARTICLES; i++) {
+
+    const a = random(0, Math.PI * 2);
+    const scale = random(0.5, 15.5);
+    const point = heart(a, scale);
+
+    mainParticles.push({
+        x: point.x,
+        y: point.y,
+        angle:
+            Math.atan2(
+                point.y - CENTER_Y,
+                point.x - CENTER_X
+            ) +
+            random(-0.5, 0.5),
+        length: random(4, 14),
+        width: random(0.5, 1.2),
+        green: random(0.25, 0.55),
+        blue: random(0.65, 0.85)
+    });
+}
+
+const EDGE_PARTICLES = 3500;
+const edgeParticles = [];
+
+for (let i = 0; i < EDGE_PARTICLES; i++) {
+
+    const a = random(0, Math.PI * 2);
+    const point = heart(a, 16.0);
+
+    edgeParticles.push({
+        x: point.x + random(-2, 2),
+        y: point.y + random(-2, 2),
+        angle:
+            Math.atan2(
+                point.y - CENTER_Y,
+                point.x - CENTER_X
+            ) +
+            random(-0.35, 0.35),
+        length: random(10, 32),
+        width: random(0.4, 0.9),
+        green: random(0.45, 0.75),
+        blue: random(0.75, 0.95)
+    });
+}
+
+function drawParticle(p) {
+
+    const endX =
+        p.x +
+        p.length *
+        Math.cos(p.angle);
+
+    const endY =
+        p.y +
+        p.length *
+        Math.sin(p.angle);
+
+    ctx.beginPath();
+
+    ctx.moveTo(
+        p.x,
+        p.y
+    );
+
+    ctx.lineTo(
+        endX,
+        endY
+    );
+
+    ctx.strokeStyle =
+        `rgb(
+            255,
+            ${Math.floor(p.green * 255)},
+            ${Math.floor(p.blue * 255)}
+        )`;
+
+    ctx.lineWidth = p.width;
+
+    ctx.stroke();
+}
+
+let mainIndex = 0;
+let edgeIndex = 0;
+let phase = "main";
+let downloaded = false;
+
+const MAIN_PARTICLES_PER_FRAME = 20;
+const EDGE_PARTICLES_PER_FRAME = 18;
+
+function animate() {
+
+    if (phase === "main") {
+
+        for (
+            let i = 0;
+            i < MAIN_PARTICLES_PER_FRAME;
+            i++
+        ) {
+
+            if (
+                mainIndex >=
+                mainParticles.length
+            ) {
+
+                phase = "edge";
+                break;
+            }
+
+            drawParticle(
+                mainParticles[mainIndex]
+            );
+
+            mainIndex++;
+        }
+
+    } else if (phase === "edge") {
+
+        for (
+            let i = 0;
+            i < EDGE_PARTICLES_PER_FRAME;
+            i++
+        ) {
+
+            if (
+                edgeIndex >=
+                edgeParticles.length
+            ) {
+
+                phase = "finished";
+                break;
+            }
+
+            drawParticle(
+                edgeParticles[edgeIndex]
+            );
+
+            edgeIndex++;
+        }
+
+    } else if (phase === "finished") {
+
+        if (!downloaded) {
+
+            downloaded = true;
+
+            setTimeout(
+                downloadImage,
+                1000
+            );
+        }
+
+        return;
+    }
+
+    requestAnimationFrame(animate);
+}
+
+function downloadImage() {
+
+    const image =
+        canvas.toDataURL("image/png");
+
+    const link =
+        document.createElement("a");
+
+    link.download =
+        "for-you-heart.png";
+
+    link.href = image;
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    document.body.removeChild(link);
+}
+
+requestAnimationFrame(animate);
+
+</script>
+
+</body>
+</html>
